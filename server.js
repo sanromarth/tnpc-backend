@@ -14,6 +14,7 @@ const placementRoutes = require("./routes/placementRoutes");
 const certificationRoutes = require("./routes/certificationRoutes");
 const topCorporateRoutes = require("./routes/topCorporateRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
+const trainingRoutes = require("./routes/trainingRoutes");
 
 const app = express();
 connectDB();
@@ -37,6 +38,7 @@ app.use("/api", placementRoutes);
 app.use("/api", certificationRoutes);
 app.use("/api", topCorporateRoutes);
 app.use("/api", notificationRoutes);
+app.use("/api", trainingRoutes);
 app.get("/", (req, res) => {
   res.send("TNPC Backend Running 🚀");
 });

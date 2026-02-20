@@ -39,6 +39,52 @@ const userSchema = new mongoose.Schema({
     type: String,
     trim: true,
     default: ""
+  },
+  batch: {
+    type: String,
+    trim: true,
+    default: ""
+  },
+  cgpa: {
+    type: Number,
+    default: 0,
+    min: 0,
+    max: 10
+  },
+  tenthPercentage: {
+    type: Number,
+    default: 0,
+    min: 0,
+    max: 100
+  },
+  twelfthPercentage: {
+    type: Number,
+    default: 0,
+    min: 0,
+    max: 100
+  },
+  backlogs: {
+    type: Number,
+    default: 0,
+    min: 0
+  },
+  skills: [{
+    type: String,
+    trim: true
+  }],
+  resumeUrl: {
+    type: String,
+    default: ""
+  },
+  placementStatus: {
+    type: String,
+    enum: ["not-placed", "placed", "opted-out"],
+    default: "not-placed"
+  },
+  certificationCount: {
+    type: Number,
+    default: 0,
+    min: 0
   }
 }, {
   timestamps: true
