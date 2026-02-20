@@ -1,7 +1,5 @@
 
 const express = require('express');
-
-
 const authRoutes = require('./routes/authRoutes');
 const jobRoutes = require('./routes/jobRoutes');
 const applicationRoutes = require('./routes/applicationRouter');
@@ -19,8 +17,6 @@ console.log('  placementRoutes:', typeof placementRoutes);
 console.log('  certificationRoutes:', typeof certificationRoutes);
 console.log('  topCorporateRoutes:', typeof topCorporateRoutes);
 console.log('  adminMiddleware:', typeof adminMiddleware);
-
-
 const User = require('./models/user');
 const Job = require('./models/Job');
 const Application = require('./models/Application');
@@ -32,8 +28,6 @@ console.log('✅ All models loaded');
 console.log('  Placement paths:', Object.keys(Placement.schema.paths).join(', '));
 console.log('  Certification paths:', Object.keys(Certification.schema.paths).join(', '));
 console.log('  Application timestamps:', !!Application.schema.options.timestamps);
-
-
 function getRoutePaths(router) {
   return router.stack
     .filter(r => r.route)

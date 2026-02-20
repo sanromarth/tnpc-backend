@@ -9,8 +9,6 @@ const connectDB = async () => {
     process.exit(1);
   }
 };
-
-
 mongoose.connection.on("disconnected", () => {
   console.warn("MongoDB disconnected!");
 });
@@ -18,8 +16,6 @@ mongoose.connection.on("disconnected", () => {
 mongoose.connection.on("error", (err) => {
   console.error("MongoDB connection error:", err);
 });
-
-
 process.on("SIGINT", async () => {
   await mongoose.connection.close();
   console.log("MongoDB connection closed through app termination");

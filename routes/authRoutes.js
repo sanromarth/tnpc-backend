@@ -73,8 +73,6 @@ router.post("/login", async (req, res) => {
         res.status(500).json({ message: "Login failed" });
     }
 });
-
-
 router.get("/profile", verifyToken, async (req, res) => {
     try {
         const user = await User.findById(req.user.id).select("-password");
@@ -86,8 +84,29 @@ router.get("/profile", verifyToken, async (req, res) => {
         res.status(500).json({ message: "Failed to fetch profile" });
     }
 });
+router.put("/profile", verifyToken, async (req, res) => {
+    try {
+        const { phone, department, registerNumber, name } = req.body;
+        const updateFields = {};
+        if (phone !== undefined) updateFields.phone = phone;
+        if (department !== undefined) updateFields.department = department;
+        if (registerNumber !== undefined) updateFields.registerNumber = registerNumber;
+        if (name !== undefined) updateFields.name = name;
 
+        const user = await User.findByIdAndUpdate(
+            req.user.id,
+            updateFields,
+            { new: true, runValidators: true }
+        ).select("-password");
 
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+        res.json(user);
+    } catch (error) {
+        res.status(500).json({ message: "Failed to update profile" });
+    }
+});
 router.get("/students", requireAdmin, async (req, res) => {
     try {
         const students = await User.find({ role: "student" }).select("-password").sort({ createdAt: -1 });
@@ -96,8 +115,6 @@ router.get("/students", requireAdmin, async (req, res) => {
         res.status(500).json({ message: "Failed to fetch students" });
     }
 });
-
-
 router.get("/stats", requireAdmin, async (req, res) => {
     try {
         const [totalStudents, totalApplications, activeJobs, accepted, rejected, pending] = await Promise.all([

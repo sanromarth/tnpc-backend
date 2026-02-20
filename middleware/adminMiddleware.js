@@ -1,6 +1,4 @@
 const verifyToken = require("./authMiddleware");
-
-
 function requireAdmin(req, res, next) {
     verifyToken(req, res, (err) => {
         if (err) return; 

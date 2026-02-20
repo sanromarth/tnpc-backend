@@ -3,8 +3,6 @@ const router = express.Router();
 const Application = require("../models/Application");
 const verifyToken = require("../middleware/authMiddleware");
 const requireAdmin = require("../middleware/adminMiddleware");
-
-
 router.post("/applications", verifyToken, async (req, res) => {
     try {
         const existing = await Application.findOne({
@@ -26,8 +24,6 @@ router.post("/applications", verifyToken, async (req, res) => {
         res.status(500).json({ message: "Failed to submit application" });
     }
 });
-
-
 router.get("/applications", requireAdmin, async (req, res) => {
     try {
         const applications = await Application.find()
@@ -40,8 +36,6 @@ router.get("/applications", requireAdmin, async (req, res) => {
         res.status(500).json({ message: "Failed to fetch applications" });
     }
 });
-
-
 router.get("/applications/my", verifyToken, async (req, res) => {
     try {
         const applications = await Application.find({ studentId: req.user.id })
@@ -53,8 +47,6 @@ router.get("/applications/my", verifyToken, async (req, res) => {
         res.status(500).json({ message: "Failed to fetch your applications" });
     }
 });
-
-
 router.patch("/applications/:id", requireAdmin, async (req, res) => {
     try {
         const { status } = req.body;

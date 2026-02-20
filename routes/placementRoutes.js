@@ -2,8 +2,6 @@ const express = require("express");
 const router = express.Router();
 const Placement = require("../models/Placement");
 const requireAdmin = require("../middleware/adminMiddleware");
-
-
 router.get("/placements", async (req, res) => {
   try {
     const placements = await Placement.find().sort({ yearOrder: 1 });
@@ -12,8 +10,6 @@ router.get("/placements", async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 });
-
-
 router.post("/placements", requireAdmin, async (req, res) => {
   try {
     const newPlacement = new Placement(req.body);
@@ -23,8 +19,6 @@ router.post("/placements", requireAdmin, async (req, res) => {
     res.status(400).json({ message: error.message });
   }
 });
-
-
 router.put("/placements/:id", requireAdmin, async (req, res) => {
   try {
     const updated = await Placement.findByIdAndUpdate(req.params.id, req.body, {
@@ -39,8 +33,6 @@ router.put("/placements/:id", requireAdmin, async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 });
-
-
 router.delete("/placements/:id", requireAdmin, async (req, res) => {
   try {
     const deleted = await Placement.findByIdAndDelete(req.params.id);

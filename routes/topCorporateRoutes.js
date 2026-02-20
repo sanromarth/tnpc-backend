@@ -2,8 +2,6 @@ const express = require("express");
 const router = express.Router();
 const TopCorporate = require("../models/TopCorporate");
 const requireAdmin = require("../middleware/adminMiddleware");
-
-
 router.get("/top-corporates", async (req, res) => {
   try {
     const corporates = await TopCorporate.find().sort({ tier: 1, name: 1 });
@@ -12,8 +10,6 @@ router.get("/top-corporates", async (req, res) => {
     res.status(500).json({ message: "Failed to fetch corporates", error: error.message });
   }
 });
-
-
 router.post("/top-corporates", requireAdmin, async (req, res) => {
   try {
     const newCorporate = new TopCorporate(req.body);
@@ -23,8 +19,6 @@ router.post("/top-corporates", requireAdmin, async (req, res) => {
     res.status(400).json({ message: "Failed to add corporate", error: error.message });
   }
 });
-
-
 router.delete("/top-corporates/:id", requireAdmin, async (req, res) => {
   try {
     const deleted = await TopCorporate.findByIdAndDelete(req.params.id);

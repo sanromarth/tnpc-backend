@@ -1,6 +1,15 @@
 const mongoose = require("mongoose");
 
 const certificationSchema = new mongoose.Schema({
+    program: {
+        type: String,
+        trim: true,
+        default: ""
+    },
+    year: {
+        type: Number,
+        default: 0
+    },
     studentName: {
         type: String,
         required: [true, "Student name is required"],
@@ -17,7 +26,6 @@ const certificationSchema = new mongoose.Schema({
     },
     status: {
         type: String,
-        enum: ["completed", "in-progress", "pending", ""],
         default: ""
     },
     batch: {
@@ -26,7 +34,8 @@ const certificationSchema = new mongoose.Schema({
         default: ""
     }
 }, {
-    timestamps: true
+    timestamps: true,
+    collection: "certificatePrograms"
 });
 
 module.exports = mongoose.model("Certification", certificationSchema);
