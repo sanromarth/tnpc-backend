@@ -65,11 +65,12 @@ router.get("/profile", verifyToken, async (req, res) => {
 
 router.put("/profile", verifyToken, async (req, res) => {
     try {
-        const { phone, department, registerNumber, name, batch, cgpa,
+        const { phone, course, specialization, registerNumber, name, batch, cgpa,
                 tenthPercentage, twelfthPercentage, backlogs, skills, resumeUrl } = req.body;
         const updateFields = {};
         if (phone !== undefined) updateFields.phone = phone;
-        if (department !== undefined) updateFields.department = department;
+        if (course !== undefined) updateFields.course = course;
+        if (specialization !== undefined) updateFields.specialization = specialization;
         if (registerNumber !== undefined) updateFields.registerNumber = registerNumber;
         if (name !== undefined) updateFields.name = name;
         if (batch !== undefined) updateFields.batch = batch;
@@ -93,9 +94,9 @@ router.put("/profile", verifyToken, async (req, res) => {
 
 router.get("/students", requireAdmin, async (req, res) => {
     try {
-        const { department, batch, minCgpa, status, search } = req.query;
+        const { course, batch, minCgpa, status, search } = req.query;
         const filter = { role: "student" };
-        if (department) filter.department = department;
+        if (course) filter.course = course;
         if (batch) filter.batch = batch;
         if (status) filter.placementStatus = status;
         if (minCgpa) filter.cgpa = { $gte: Number(minCgpa) };
@@ -131,9 +132,9 @@ router.patch("/students/:id/status", requireAdmin, async (req, res) => {
 router.get("/students/export", requireAdmin, async (req, res) => {
     try {
         const students = await User.find({ role: "student" }).select("-password").sort({ name: 1 });
-        let csv = "Name,Email,Register Number,Department,Batch,CGPA,10th %,12th %,Backlogs,Phone,Placement Status,Skills\n";
+        let csv = "Name,Email,Register Number,Course,Specialization,Batch,CGPA,10th %,12th %,Backlogs,Phone,Placement Status,Skills\n";
         students.forEach(s => {
-            csv += `"${s.name}","${s.email}","${s.registerNumber}","${s.department}","${s.batch}",${s.cgpa},${s.tenthPercentage},${s.twelfthPercentage},${s.backlogs},"${s.phone}","${s.placementStatus}","${(s.skills || []).join(', ')}"\n`;
+            csv += `"${s.name}","${s.email}","${s.registerNumber}","${s.course}","${s.specialization}","${s.batch}",${s.cgpa},${s.tenthPercentage},${s.twelfthPercentage},${s.backlogs},"${s.phone}","${s.placementStatus}","${(s.skills || []).join(', ')}"\n`;
         });
         res.setHeader("Content-Type", "text/csv");
         res.setHeader("Content-Disposition", "attachment; filename=students.csv");
@@ -178,7 +179,7 @@ router.get("/student-stats", verifyToken, async (req, res) => {
         ]);
         if (!user) return res.status(404).json({ message: "User not found" });
 
-        const profileFields = ["name", "email", "phone", "department", "registerNumber", "batch", "cgpa"];
+        const profileFields = ["name", "email", "phone", "course", "specialization", "registerNumber", "batch", "cgpa"];
         const filled = profileFields.filter(f => user[f] && String(user[f]).trim() !== "" && user[f] !== 0).length;
         const profileCompletion = Math.round((filled / profileFields.length) * 100);
         const isEligible = user.cgpa >= 6.0 && user.backlogs === 0;
@@ -203,18 +204,18 @@ router.get("/student-stats", verifyToken, async (req, res) => {
 
 router.get("/admin/analytics", requireAdmin, async (req, res) => {
     try {
-        const students = await User.find({ role: "student" }).select("department placementStatus cgpa batch");
+        const students = await User.find({ role: "student" }).select("course specialization placementStatus cgpa batch");
 
         const deptMap = {};
         students.forEach(s => {
-            const dept = s.department || "Unknown";
+            const dept = s.course || "Unknown";
             if (!deptMap[dept]) deptMap[dept] = { total: 0, placed: 0 };
             deptMap[dept].total++;
             if (s.placementStatus === "placed") deptMap[dept].placed++;
         });
 
         const departmentWise = Object.entries(deptMap).map(([dept, data]) => ({
-            department: dept,
+            course: dept,
             total: data.total,
             placed: data.placed,
             percentage: data.total > 0 ? Math.round((data.placed / data.total) * 100) : 0

@@ -30,7 +30,12 @@ const userSchema = new mongoose.Schema({
     trim: true,
     default: ""
   },
-  department: {
+  course: {
+    type: String,
+    trim: true,
+    default: ""
+  },
+  specialization: {
     type: String,
     trim: true,
     default: ""
