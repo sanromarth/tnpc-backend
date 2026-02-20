@@ -28,7 +28,7 @@ router.get("/applications", requireAdmin, async (req, res) => {
     try {
         const applications = await Application.find()
             .populate("jobId", "company role salary location deadline type status")
-            .populate("studentId", "name email department registerNumber")
+            .populate("studentId", "name email course specialization registerNumber")
             .sort({ appliedAt: -1 });
         res.json(applications);
     } catch (error) {
@@ -50,7 +50,7 @@ router.get("/applications/my", verifyToken, async (req, res) => {
 router.patch("/applications/:id", requireAdmin, async (req, res) => {
     try {
         const { status } = req.body;
-        if (!["pending", "accepted", "rejected"].includes(status)) {
+        if (!["pending", "shortlisted", "accepted", "rejected"].includes(status)) {
             return res.status(400).json({ message: "Invalid status value" });
         }
 
