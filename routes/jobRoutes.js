@@ -6,7 +6,7 @@ const requireAdmin = require("../middleware/adminMiddleware");
 
 router.get("/jobs", async (req, res) => {
     try {
-        const { status, type, company, search } = req.query;
+        const { status, type, company, search, page, limit: limitParam } = req.query;
         const filter = {};
         if (status) filter.status = status;
         if (type) filter.type = type;
@@ -17,8 +17,21 @@ router.get("/jobs", async (req, res) => {
                 { role: { $regex: search, $options: "i" } }
             ];
         }
-        const jobs = await Job.find(filter).sort({ createdAt: -1 });
-        res.json(jobs);
+
+        await Job.updateMany(
+            { deadline: { $lt: new Date() }, status: "active" },
+            { $set: { status: "expired" } }
+        );
+
+        const pageNum = Math.max(1, parseInt(page) || 1);
+        const limit = Math.min(100, Math.max(1, parseInt(limitParam) || 50));
+        const skip = (pageNum - 1) * limit;
+        const total = await Job.countDocuments(filter);
+        const jobs = await Job.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit);
+        res.json({
+            jobs,
+            pagination: { page: pageNum, limit, total, pages: Math.ceil(total / limit) }
+        });
     } catch (error) {
         res.status(500).json({ message: "Failed to fetch jobs" });
     }
@@ -36,6 +49,10 @@ router.get("/jobs/:id", async (req, res) => {
 
 router.post("/jobs", requireAdmin, async (req, res) => {
     try {
+        const { company, role } = req.body;
+        if (!company || !role) {
+            return res.status(400).json({ message: "Company and role are required" });
+        }
         const job = new Job({
             ...req.body,
             postedBy: req.user.id

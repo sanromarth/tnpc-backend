@@ -49,14 +49,17 @@ router.get("/applications/my", verifyToken, async (req, res) => {
 });
 router.patch("/applications/:id", requireAdmin, async (req, res) => {
     try {
-        const { status } = req.body;
+        const { status, remarks } = req.body;
         if (!["pending", "shortlisted", "accepted", "rejected"].includes(status)) {
             return res.status(400).json({ message: "Invalid status value" });
         }
 
+        const updateData = { status };
+        if (remarks !== undefined) updateData.remarks = remarks;
+
         const application = await Application.findByIdAndUpdate(
             req.params.id,
-            { status },
+            updateData,
             { new: true }
         )
             .populate("jobId", "company role")
@@ -70,6 +73,26 @@ router.patch("/applications/:id", requireAdmin, async (req, res) => {
     } catch (error) {
         console.error("Update application error:", error.message);
         res.status(500).json({ message: "Failed to update application status" });
+    }
+});
+
+router.delete("/applications/:id", verifyToken, async (req, res) => {
+    try {
+        const application = await Application.findOne({
+            _id: req.params.id,
+            studentId: req.user.id
+        });
+        if (!application) {
+            return res.status(404).json({ message: "Application not found or unauthorized" });
+        }
+        if (application.status !== "pending") {
+            return res.status(400).json({ message: "Can only withdraw pending applications" });
+        }
+        await Application.findByIdAndDelete(req.params.id);
+        res.json({ message: "Application withdrawn successfully" });
+    } catch (error) {
+        console.error("Withdraw application error:", error.message);
+        res.status(500).json({ message: "Failed to withdraw application" });
     }
 });
 
