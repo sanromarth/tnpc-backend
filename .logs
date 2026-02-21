@@ -10,3 +10,16 @@
 [dotenv@17.3.1] injecting env (3) from .env -- tip: ⚙️  override existing env vars with { override: true }
 Server running on port 5000
 MongoDB Connected: ac-uvdcvoa-shard-00-00.tbyk3gp.mongodb.net
+[32m[nodemon] restarting child process[39m
+Node.js[5868]: ../src/node.cc:701:void node::ResetStdio(): Assertion `!(err != 0) || (err == -1 && (*__errno_location ()) == 1)' failed.
+ 1: 0x7fc03bc1ab08 node::Abort() [/lib/x86_64-linux-gnu/libnode.so.108]
+ 2: 0x7fc03bc1ab86  [/lib/x86_64-linux-gnu/libnode.so.108]
+ 3: 0x7fc03bbd1b86  [/lib/x86_64-linux-gnu/libnode.so.108]
+ 4: 0x7fc03dfa455d  [/lib/x86_64-linux-gnu/libc.so.6]
+ 5: 0x7fc03dfa469a  [/lib/x86_64-linux-gnu/libc.so.6]
+ 6: 0x7fc03bb4d356 node::DefaultProcessExitHandler(node::Environment*, int) [/lib/x86_64-linux-gnu/libnode.so.108]
+ 7: 0x7fc03bb9aaf8 node::Environment::Exit(int) [/lib/x86_64-linux-gnu/libnode.so.108]
+ 8: 0x7fc03c076a42 v8::internal::FunctionCallbackArguments::Call(v8::internal::CallHandlerInfo) [/lib/x86_64-linux-gnu/libnode.so.108]
+ 9: 0x7fc03c077024  [/lib/x86_64-linux-gnu/libnode.so.108]
+10: 0x7fc03c0778e7 v8::internal::Builtin_HandleApiCall(int, unsigned long*, v8::internal::Isolate*) [/lib/x86_64-linux-gnu/libnode.so.108]
+11: 0x7fc03bf218f9  [/lib/x86_64-linux-gnu/libnode.so.108]

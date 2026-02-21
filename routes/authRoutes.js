@@ -8,6 +8,7 @@ const requireAdmin = require("../middleware/adminMiddleware");
 const Job = require("../models/Job");
 const Application = require("../models/Application");
 const Placement = require("../models/Placement");
+const { generateOTP, sendOTPEmail } = require("../utils/otp");
 
 router.post("/register", async (req, res) => {
     try {
@@ -15,16 +16,154 @@ router.post("/register", async (req, res) => {
         if (!name || !email || !password) {
             return res.status(400).json({ message: "All fields are required" });
         }
+        if (password.length < 6) {
+            return res.status(400).json({ message: "Password must be at least 6 characters" });
+        }
         const existingUser = await User.findOne({ email });
-        if (existingUser) {
+        if (existingUser && existingUser.isVerified) {
             return res.status(400).json({ message: "User already exists" });
         }
+
+        const otp = generateOTP();
+        const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
         const hashedPassword = await bcrypt.hash(password, 10);
-        const user = new User({ name, email, password: hashedPassword, role: "student" });
-        await user.save();
-        res.status(201).json({ message: "User registered successfully" });
+
+        if (existingUser && !existingUser.isVerified) {
+            existingUser.name = name;
+            existingUser.password = hashedPassword;
+            existingUser.otpCode = otp;
+            existingUser.otpExpiry = otpExpiry;
+            await existingUser.save();
+        } else {
+            const user = new User({
+                name, email, password: hashedPassword, role: "student",
+                otpCode: otp, otpExpiry, isVerified: false
+            });
+            await user.save();
+        }
+
+        const emailResult = await sendOTPEmail(email, otp, "verification");
+        if (!emailResult.success) {
+            return res.status(500).json({ message: "Failed to send OTP email. Please try again." });
+        }
+
+        res.status(200).json({ message: "OTP sent to your email. Verify to complete registration.", requiresOTP: true });
     } catch (error) {
+        console.error("Register error:", error.message);
         res.status(500).json({ message: "Registration failed" });
+    }
+});
+
+router.post("/verify-registration-otp", async (req, res) => {
+    try {
+        const { email, otp } = req.body;
+        if (!email || !otp) {
+            return res.status(400).json({ message: "Email and OTP are required" });
+        }
+        const user = await User.findOne({ email });
+        if (!user) return res.status(404).json({ message: "User not found" });
+        if (user.isVerified) return res.status(400).json({ message: "Already verified" });
+        if (user.otpCode !== otp) return res.status(400).json({ message: "Invalid OTP" });
+        if (new Date() > user.otpExpiry) return res.status(400).json({ message: "OTP expired. Please request a new one." });
+
+        user.isVerified = true;
+        user.otpCode = "";
+        user.otpExpiry = null;
+        await user.save();
+
+        res.json({ message: "Email verified successfully! You can now login." });
+    } catch (error) {
+        res.status(500).json({ message: "Verification failed" });
+    }
+});
+
+router.post("/resend-otp", async (req, res) => {
+    try {
+        const { email, purpose } = req.body;
+        if (!email) return res.status(400).json({ message: "Email is required" });
+
+        const user = await User.findOne({ email });
+        if (!user) return res.status(404).json({ message: "User not found" });
+
+        const otp = generateOTP();
+        user.otpCode = otp;
+        user.otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
+        await user.save();
+
+        const emailResult = await sendOTPEmail(email, otp, purpose || "verification");
+        if (!emailResult.success) {
+            return res.status(500).json({ message: "Failed to send OTP" });
+        }
+
+        res.json({ message: "OTP resent to your email" });
+    } catch (error) {
+        res.status(500).json({ message: "Failed to resend OTP" });
+    }
+});
+
+router.post("/forgot-password", async (req, res) => {
+    try {
+        const { email } = req.body;
+        if (!email) return res.status(400).json({ message: "Email is required" });
+
+        const user = await User.findOne({ email, isVerified: true });
+        if (!user) return res.status(404).json({ message: "No verified account found with that email" });
+
+        const otp = generateOTP();
+        user.otpCode = otp;
+        user.otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
+        await user.save();
+
+        const emailResult = await sendOTPEmail(email, otp, "reset");
+        if (!emailResult.success) {
+            return res.status(500).json({ message: "Failed to send reset email" });
+        }
+
+        res.json({ message: "OTP sent to your email for password reset" });
+    } catch (error) {
+        res.status(500).json({ message: "Failed to process request" });
+    }
+});
+
+router.post("/verify-reset-otp", async (req, res) => {
+    try {
+        const { email, otp } = req.body;
+        if (!email || !otp) return res.status(400).json({ message: "Email and OTP are required" });
+
+        const user = await User.findOne({ email });
+        if (!user) return res.status(404).json({ message: "User not found" });
+        if (user.otpCode !== otp) return res.status(400).json({ message: "Invalid OTP" });
+        if (new Date() > user.otpExpiry) return res.status(400).json({ message: "OTP expired" });
+
+        res.json({ message: "OTP verified. You can now set a new password.", verified: true });
+    } catch (error) {
+        res.status(500).json({ message: "Verification failed" });
+    }
+});
+
+router.post("/reset-password", async (req, res) => {
+    try {
+        const { email, otp, newPassword } = req.body;
+        if (!email || !otp || !newPassword) {
+            return res.status(400).json({ message: "All fields are required" });
+        }
+        if (newPassword.length < 6) {
+            return res.status(400).json({ message: "Password must be at least 6 characters" });
+        }
+
+        const user = await User.findOne({ email });
+        if (!user) return res.status(404).json({ message: "User not found" });
+        if (user.otpCode !== otp) return res.status(400).json({ message: "Invalid OTP" });
+        if (new Date() > user.otpExpiry) return res.status(400).json({ message: "OTP expired" });
+
+        user.password = await bcrypt.hash(newPassword, 10);
+        user.otpCode = "";
+        user.otpExpiry = null;
+        await user.save();
+
+        res.json({ message: "Password reset successful! You can now login with your new password." });
+    } catch (error) {
+        res.status(500).json({ message: "Password reset failed" });
     }
 });
 
@@ -37,6 +176,9 @@ router.post("/login", async (req, res) => {
         const user = await User.findOne({ email });
         if (!user) {
             return res.status(400).json({ message: "Invalid credentials" });
+        }
+        if (!user.isVerified) {
+            return res.status(403).json({ message: "Email not verified. Please verify your email first.", requiresVerification: true });
         }
         const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) {
@@ -55,7 +197,7 @@ router.post("/login", async (req, res) => {
 
 router.get("/profile", verifyToken, async (req, res) => {
     try {
-        const user = await User.findById(req.user.id).select("-password");
+        const user = await User.findById(req.user.id).select("-password -otpCode -otpExpiry");
         if (!user) return res.status(404).json({ message: "User not found" });
         res.json(user);
     } catch (error) {
@@ -84,7 +226,7 @@ router.put("/profile", verifyToken, async (req, res) => {
         const user = await User.findByIdAndUpdate(
             req.user.id, updateFields,
             { new: true, runValidators: true }
-        ).select("-password");
+        ).select("-password -otpCode -otpExpiry");
         if (!user) return res.status(404).json({ message: "User not found" });
         res.json(user);
     } catch (error) {
@@ -95,7 +237,7 @@ router.put("/profile", verifyToken, async (req, res) => {
 router.get("/students", requireAdmin, async (req, res) => {
     try {
         const { course, batch, minCgpa, status, search } = req.query;
-        const filter = { role: "student" };
+        const filter = { role: "student", isVerified: true };
         if (course) filter.course = course;
         if (batch) filter.batch = batch;
         if (status) filter.placementStatus = status;
@@ -107,7 +249,7 @@ router.get("/students", requireAdmin, async (req, res) => {
                 { registerNumber: { $regex: search, $options: "i" } }
             ];
         }
-        const students = await User.find(filter).select("-password").sort({ createdAt: -1 });
+        const students = await User.find(filter).select("-password -otpCode -otpExpiry").sort({ createdAt: -1 });
         res.json(students);
     } catch (error) {
         res.status(500).json({ message: "Failed to fetch students" });
@@ -121,7 +263,7 @@ router.patch("/students/:id/status", requireAdmin, async (req, res) => {
             req.params.id,
             { placementStatus },
             { new: true, runValidators: true }
-        ).select("-password");
+        ).select("-password -otpCode -otpExpiry");
         if (!user) return res.status(404).json({ message: "Student not found" });
         res.json(user);
     } catch (error) {
@@ -131,10 +273,10 @@ router.patch("/students/:id/status", requireAdmin, async (req, res) => {
 
 router.get("/students/export", requireAdmin, async (req, res) => {
     try {
-        const students = await User.find({ role: "student" }).select("-password").sort({ name: 1 });
+        const students = await User.find({ role: "student", isVerified: true }).select("-password -otpCode -otpExpiry").sort({ name: 1 });
         let csv = "Name,Email,Register Number,Course,Specialization,Batch,CGPA,10th %,12th %,Backlogs,Phone,Placement Status,Skills\n";
         students.forEach(s => {
-            csv += `"${s.name}","${s.email}","${s.registerNumber}","${s.course}","${s.specialization}","${s.batch}",${s.cgpa},${s.tenthPercentage},${s.twelfthPercentage},${s.backlogs},"${s.phone}","${s.placementStatus}","${(s.skills || []).join(', ')}"\n`;
+            csv += `"${s.name || ''}","${s.email || ''}","${s.registerNumber || ''}","${s.course || ''}","${s.specialization || ''}","${s.batch || ''}",${s.cgpa || 0},${s.tenthPercentage || 0},${s.twelfthPercentage || 0},${s.backlogs || 0},"${s.phone || ''}","${s.placementStatus || ''}","${(s.skills || []).join(', ')}"\n`;
         });
         res.setHeader("Content-Type", "text/csv");
         res.setHeader("Content-Disposition", "attachment; filename=students.csv");
@@ -147,15 +289,15 @@ router.get("/students/export", requireAdmin, async (req, res) => {
 router.get("/stats", requireAdmin, async (req, res) => {
     try {
         const [totalStudents, totalApplications, activeJobs, accepted, rejected, pending, shortlisted, placed, notPlaced] = await Promise.all([
-            User.countDocuments({ role: "student" }),
+            User.countDocuments({ role: "student", isVerified: true }),
             Application.countDocuments(),
             Job.countDocuments({ status: "active" }),
             Application.countDocuments({ status: "accepted" }),
             Application.countDocuments({ status: "rejected" }),
             Application.countDocuments({ status: "pending" }),
             Application.countDocuments({ status: "shortlisted" }),
-            User.countDocuments({ role: "student", placementStatus: "placed" }),
-            User.countDocuments({ role: "student", placementStatus: "not-placed" })
+            User.countDocuments({ role: "student", placementStatus: "placed", isVerified: true }),
+            User.countDocuments({ role: "student", placementStatus: "not-placed", isVerified: true })
         ]);
         const placementRate = totalStudents > 0 ? Math.round((placed / totalStudents) * 100) : 0;
         res.json({
@@ -173,7 +315,7 @@ router.get("/student-stats", verifyToken, async (req, res) => {
     try {
         const userId = req.user.id;
         const [user, applications, activeJobs] = await Promise.all([
-            User.findById(userId).select("-password"),
+            User.findById(userId).select("-password -otpCode -otpExpiry"),
             Application.find({ studentId: userId }).populate("jobId"),
             Job.countDocuments({ status: "active" })
         ]);
@@ -204,7 +346,7 @@ router.get("/student-stats", verifyToken, async (req, res) => {
 
 router.get("/admin/analytics", requireAdmin, async (req, res) => {
     try {
-        const students = await User.find({ role: "student" }).select("course specialization placementStatus cgpa batch");
+        const students = await User.find({ role: "student", isVerified: true }).select("course specialization placementStatus cgpa batch");
 
         const deptMap = {};
         students.forEach(s => {

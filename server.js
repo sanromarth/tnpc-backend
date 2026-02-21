@@ -12,7 +12,6 @@ const jobRoutes = require("./routes/jobRoutes");
 const applicationRoutes = require("./routes/applicationRouter");
 const placementRoutes = require("./routes/placementRoutes");
 const certificationRoutes = require("./routes/certificationRoutes");
-const topCorporateRoutes = require("./routes/topCorporateRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
 const trainingRoutes = require("./routes/trainingRoutes");
 
@@ -49,7 +48,6 @@ app.use("/api", jobRoutes);
 app.use("/api", applicationRoutes);
 app.use("/api", placementRoutes);
 app.use("/api", certificationRoutes);
-app.use("/api", topCorporateRoutes);
 app.use("/api", notificationRoutes);
 app.use("/api", trainingRoutes);
 app.get("/", (req, res) => {
