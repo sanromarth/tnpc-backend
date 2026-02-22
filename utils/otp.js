@@ -65,7 +65,7 @@ async function sendOTPEmail(email, otp, purpose = "verification") {
     };
 
     const mailOptions = {
-        from: `"TNPC Portal" <${process.env.SMTP_EMAIL}>`,
+        from: `"SGCSRC TNPC Portal" <${process.env.SMTP_EMAIL}>`,
         to: email,
         subject: subjects[purpose] || subjects.verification,
         html: bodies[purpose] || bodies.verification
