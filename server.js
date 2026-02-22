@@ -15,7 +15,7 @@ const certificationRoutes = require("./routes/certificationRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
 const trainingRoutes = require("./routes/trainingRoutes");
 const corporateRoutes = require("./routes/corporateRoutes");
-const { verifyTransporter } = require("./utils/otp");
+
 
 const app = express();
 connectDB();
@@ -72,16 +72,7 @@ app.get("/api/health", (req, res) => {
   });
 });
 
-app.get("/api/smtp-test", async (req, res) => {
-  const result = await verifyTransporter();
-  res.json({
-    status: result.success ? "ready" : "failed",
-    method: result.method || "unknown",
-    smtpEmail: process.env.SMTP_EMAIL || "NOT SET",
-    brevoKeySet: !!process.env.BREVO_API_KEY,
-    error: result.error || null
-  });
-});
+
 app.use((req, res, next) => {
   res.status(404).json({ success: false, message: "Route not found" });
 });
@@ -93,6 +84,10 @@ app.use((err, req, res, next) => {
     ...(process.env.NODE_ENV === "development" && { stack: err.stack }),
   });
 });
+
+if (!process.env.JWT_SECRET || process.env.JWT_SECRET === "supersecretkey123") {
+  console.warn("⚠️  WARNING: JWT_SECRET is not set or uses default value. Set a strong secret in production!");
+}
 
 const PORT = process.env.PORT || 5000;
 const server = app.listen(PORT, () => {

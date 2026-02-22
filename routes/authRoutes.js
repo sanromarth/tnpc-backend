@@ -256,21 +256,6 @@ router.get("/students", requireAdmin, async (req, res) => {
     }
 });
 
-router.patch("/students/:id/status", requireAdmin, async (req, res) => {
-    try {
-        const { placementStatus } = req.body;
-        const user = await User.findByIdAndUpdate(
-            req.params.id,
-            { placementStatus },
-            { new: true, runValidators: true }
-        ).select("-password -otpCode -otpExpiry");
-        if (!user) return res.status(404).json({ message: "Student not found" });
-        res.json(user);
-    } catch (error) {
-        res.status(500).json({ message: "Failed to update status" });
-    }
-});
-
 router.get("/students/export", requireAdmin, async (req, res) => {
     try {
         const students = await User.find({ role: "student", isVerified: true }).select("-password -otpCode -otpExpiry").sort({ name: 1 });
@@ -283,6 +268,21 @@ router.get("/students/export", requireAdmin, async (req, res) => {
         res.send(csv);
     } catch (error) {
         res.status(500).json({ message: "Failed to export students" });
+    }
+});
+
+router.patch("/students/:id/status", requireAdmin, async (req, res) => {
+    try {
+        const { placementStatus } = req.body;
+        const user = await User.findByIdAndUpdate(
+            req.params.id,
+            { placementStatus },
+            { new: true, runValidators: true }
+        ).select("-password -otpCode -otpExpiry");
+        if (!user) return res.status(404).json({ message: "Student not found" });
+        res.json(user);
+    } catch (error) {
+        res.status(500).json({ message: "Failed to update status" });
     }
 });
 

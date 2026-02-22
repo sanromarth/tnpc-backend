@@ -51,22 +51,6 @@ router.post("/notifications", requireAdmin, async (req, res) => {
     }
 });
 
-router.patch("/notifications/:id/read", verifyToken, async (req, res) => {
-    try {
-        const notification = await Notification.findByIdAndUpdate(
-            req.params.id,
-            { $addToSet: { readBy: req.user.id } },
-            { new: true }
-        );
-        if (!notification) {
-            return res.status(404).json({ message: "Notification not found" });
-        }
-        res.json({ message: "Marked as read" });
-    } catch (error) {
-        res.status(500).json({ message: "Failed to mark as read" });
-    }
-});
-
 router.patch("/notifications/read-all", verifyToken, async (req, res) => {
     try {
         const userRole = req.user.role;
@@ -80,6 +64,22 @@ router.patch("/notifications/read-all", verifyToken, async (req, res) => {
         res.json({ message: "All notifications marked as read" });
     } catch (error) {
         res.status(500).json({ message: "Failed to mark all as read" });
+    }
+});
+
+router.patch("/notifications/:id/read", verifyToken, async (req, res) => {
+    try {
+        const notification = await Notification.findByIdAndUpdate(
+            req.params.id,
+            { $addToSet: { readBy: req.user.id } },
+            { new: true }
+        );
+        if (!notification) {
+            return res.status(404).json({ message: "Notification not found" });
+        }
+        res.json({ message: "Marked as read" });
+    } catch (error) {
+        res.status(500).json({ message: "Failed to mark as read" });
     }
 });
 
