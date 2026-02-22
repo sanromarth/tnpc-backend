@@ -43,15 +43,16 @@ function getEmailHTML(otp, purpose) {
     </div>`;
 }
 
-async function sendViaBrevo(email, subject, htmlContent, senderEmail) {
-    const apiKey = process.env.BREVO_API_KEY;
+async function sendViaBrevoAPI(email, subject, htmlContent, senderEmail, senderName) {
+    const apiKey = process.env.BREVO_API_KEY || process.env.EMAIL_PASS;
     if (!apiKey) {
-        console.error("[EMAIL] BREVO_API_KEY is not set!");
-        return { success: false, error: "BREVO_API_KEY not configured" };
+        return { success: false, error: "No Brevo API key found" };
     }
 
+    console.log("[EMAIL] Using Brevo HTTP API...");
+
     const payload = {
-        sender: { name: "SGCSRC TNPC Portal", email: senderEmail },
+        sender: { name: senderName, email: senderEmail },
         to: [{ email: email }],
         subject: subject,
         htmlContent: htmlContent
@@ -71,49 +72,90 @@ async function sendViaBrevo(email, subject, htmlContent, senderEmail) {
         const data = await response.json();
 
         if (response.ok) {
-            console.log(`[EMAIL] ✅ Brevo email sent! MessageId: ${data.messageId}`);
-            return { success: true };
+            console.log(`[EMAIL] ✅ Brevo API sent! MessageId: ${data.messageId}`);
+            return { success: true, method: "brevo-api" };
         } else {
-            console.error("[EMAIL] ❌ Brevo API error:", data.message || JSON.stringify(data));
-            return { success: false, error: data.message || "Brevo API error" };
+            console.error("[EMAIL] ❌ Brevo API error:", response.status, data.message || JSON.stringify(data));
+            return { success: false, error: data.message || `Brevo API ${response.status}` };
         }
     } catch (error) {
-        console.error("[EMAIL] ❌ Brevo fetch error:", error.message);
+        console.error("[EMAIL] ❌ Brevo API fetch error:", error.message);
         return { success: false, error: error.message };
     }
 }
 
-async function sendViaNodemailer(email, subject, htmlContent, senderEmail) {
+async function sendViaBrevoSMTP(email, subject, htmlContent, senderEmail, senderName) {
+    const host = process.env.EMAIL_HOST;
+    const port = parseInt(process.env.EMAIL_PORT || "587");
+    const user = process.env.EMAIL_USER;
+    const pass = process.env.EMAIL_PASS;
+
+    if (!host || !user || !pass) {
+        return { success: false, error: "Brevo SMTP credentials not configured" };
+    }
+
+    console.log(`[EMAIL] Using Brevo SMTP (${host}:${port})...`);
+
     const transporter = nodemailer.createTransport({
-        service: "gmail",
-        auth: {
-            user: process.env.SMTP_EMAIL,
-            pass: process.env.SMTP_PASSWORD
-        },
+        host: host,
+        port: port,
+        secure: port === 465,
+        auth: { user, pass },
         connectionTimeout: 30000,
         greetingTimeout: 30000,
         socketTimeout: 30000
     });
 
-    const mailOptions = {
-        from: `"SGCSRC TNPC Portal" <${senderEmail}>`,
-        to: email,
-        subject: subject,
-        html: htmlContent
-    };
+    try {
+        const info = await transporter.sendMail({
+            from: `"${senderName}" <${senderEmail}>`,
+            to: email,
+            subject: subject,
+            html: htmlContent
+        });
+        console.log(`[EMAIL] ✅ Brevo SMTP sent! MessageId: ${info.messageId}`);
+        return { success: true, method: "brevo-smtp" };
+    } catch (error) {
+        console.error("[EMAIL] ❌ Brevo SMTP error:", error.code, error.message);
+        return { success: false, error: error.message };
+    }
+}
+
+async function sendViaGmailSMTP(email, subject, htmlContent, senderEmail, senderName) {
+    const smtpEmail = process.env.SMTP_EMAIL;
+    const smtpPass = process.env.SMTP_PASSWORD;
+
+    if (!smtpEmail || !smtpPass) {
+        return { success: false, error: "Gmail SMTP credentials not configured" };
+    }
+
+    console.log("[EMAIL] Using Gmail SMTP (fallback)...");
+
+    const transporter = nodemailer.createTransport({
+        service: "gmail",
+        auth: { user: smtpEmail, pass: smtpPass },
+        connectionTimeout: 15000,
+        greetingTimeout: 15000,
+        socketTimeout: 15000
+    });
 
     try {
-        const info = await transporter.sendMail(mailOptions);
-        console.log(`[EMAIL] ✅ Nodemailer sent! MessageId: ${info.messageId}`);
-        return { success: true };
+        const info = await transporter.sendMail({
+            from: `"${senderName}" <${smtpEmail}>`,
+            to: email,
+            subject: subject,
+            html: htmlContent
+        });
+        console.log(`[EMAIL] ✅ Gmail SMTP sent! MessageId: ${info.messageId}`);
+        return { success: true, method: "gmail-smtp" };
     } catch (error) {
-        console.error("[EMAIL] ❌ Nodemailer error:", error.code, error.message);
+        console.error("[EMAIL] ❌ Gmail SMTP error:", error.code, error.message);
         return { success: false, error: error.message };
     }
 }
 
 async function sendOTPEmail(email, otp, purpose = "verification") {
-    console.log(`[EMAIL] Sending ${purpose} OTP to: ${email}`);
+    console.log(`[EMAIL] === Sending ${purpose} OTP to: ${email} ===`);
 
     const subjects = {
         verification: "Verify Your Email — TNPC Portal",
@@ -123,34 +165,42 @@ async function sendOTPEmail(email, otp, purpose = "verification") {
     const subject = subjects[purpose] || subjects.verification;
     const htmlContent = getEmailHTML(otp, purpose);
     const senderEmail = process.env.SMTP_EMAIL || "sgcsrc.tnpc@gmail.com";
+    const senderName = "SGCSRC TNPC Portal";
 
-    if (process.env.BREVO_API_KEY) {
-        console.log("[EMAIL] Using Brevo HTTP API");
-        return await sendViaBrevo(email, subject, htmlContent, senderEmail);
+    const methods = [
+        () => sendViaBrevoAPI(email, subject, htmlContent, senderEmail, senderName),
+        () => sendViaBrevoSMTP(email, subject, htmlContent, senderEmail, senderName),
+        () => sendViaGmailSMTP(email, subject, htmlContent, senderEmail, senderName)
+    ];
+
+    for (const method of methods) {
+        const result = await method();
+        if (result.success) {
+            console.log(`[EMAIL] ✅ SUCCESS via ${result.method}`);
+            return { success: true };
+        }
+        console.log(`[EMAIL] Method failed, trying next...`);
     }
 
-    console.log("[EMAIL] Using Nodemailer SMTP (fallback)");
-    return await sendViaNodemailer(email, subject, htmlContent, senderEmail);
+    console.error("[EMAIL] ❌ ALL methods failed!");
+    return { success: false, error: "All email methods failed" };
 }
 
 async function verifyTransporter() {
-    if (process.env.BREVO_API_KEY) {
-        console.log("[EMAIL] Brevo API key is configured - using HTTP API (no SMTP needed)");
-        return { success: true, method: "brevo" };
+    const brevoKey = process.env.BREVO_API_KEY || process.env.EMAIL_PASS;
+    if (brevoKey) {
+        console.log("[EMAIL] Brevo key found - will use HTTP API");
+        return { success: true, method: "brevo-api" };
     }
-    try {
-        const transporter = nodemailer.createTransport({
-            service: "gmail",
-            auth: { user: process.env.SMTP_EMAIL, pass: process.env.SMTP_PASSWORD },
-            connectionTimeout: 10000
-        });
-        await transporter.verify();
-        console.log("[EMAIL] ✅ SMTP verified");
-        return { success: true, method: "smtp" };
-    } catch (error) {
-        console.error("[EMAIL] ❌ SMTP verify failed:", error.code, error.message);
-        return { success: false, error: error.message, code: error.code };
+    if (process.env.EMAIL_HOST && process.env.EMAIL_USER) {
+        console.log("[EMAIL] Brevo SMTP credentials found");
+        return { success: true, method: "brevo-smtp" };
     }
+    if (process.env.SMTP_EMAIL && process.env.SMTP_PASSWORD) {
+        console.log("[EMAIL] Gmail SMTP credentials found (may be blocked on cloud)");
+        return { success: true, method: "gmail-smtp" };
+    }
+    return { success: false, error: "No email credentials configured" };
 }
 
 module.exports = { generateOTP, sendOTPEmail, verifyTransporter };
