@@ -75,11 +75,11 @@ app.get("/api/health", (req, res) => {
 app.get("/api/smtp-test", async (req, res) => {
   const result = await verifyTransporter();
   res.json({
-    smtpStatus: result.success ? "connected" : "failed",
+    status: result.success ? "ready" : "failed",
+    method: result.method || "unknown",
     smtpEmail: process.env.SMTP_EMAIL || "NOT SET",
-    passwordSet: !!process.env.SMTP_PASSWORD,
-    error: result.error || null,
-    errorCode: result.code || null
+    brevoKeySet: !!process.env.BREVO_API_KEY,
+    error: result.error || null
   });
 });
 app.use((req, res, next) => {
