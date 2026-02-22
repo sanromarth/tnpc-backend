@@ -15,6 +15,7 @@ const certificationRoutes = require("./routes/certificationRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
 const trainingRoutes = require("./routes/trainingRoutes");
 const corporateRoutes = require("./routes/corporateRoutes");
+const { verifyTransporter } = require("./utils/otp");
 
 const app = express();
 connectDB();
@@ -68,6 +69,17 @@ app.get("/api/health", (req, res) => {
     uptime: process.uptime(),
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || "development"
+  });
+});
+
+app.get("/api/smtp-test", async (req, res) => {
+  const result = await verifyTransporter();
+  res.json({
+    smtpStatus: result.success ? "connected" : "failed",
+    smtpEmail: process.env.SMTP_EMAIL || "NOT SET",
+    passwordSet: !!process.env.SMTP_PASSWORD,
+    error: result.error || null,
+    errorCode: result.code || null
   });
 });
 app.use((req, res, next) => {

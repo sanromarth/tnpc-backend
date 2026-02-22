@@ -5,19 +5,42 @@ function generateOTP() {
 }
 
 function createTransporter() {
+    const smtpEmail = process.env.SMTP_EMAIL;
+    const smtpPass = process.env.SMTP_PASSWORD;
+
+    console.log("[SMTP] Creating transporter with email:", smtpEmail ? smtpEmail : "MISSING!");
+    console.log("[SMTP] Password present:", smtpPass ? `Yes (${smtpPass.length} chars)` : "MISSING!");
+
+    if (!smtpEmail || !smtpPass) {
+        console.error("[SMTP] CRITICAL: Missing SMTP_EMAIL or SMTP_PASSWORD in environment variables!");
+    }
+
     return nodemailer.createTransport({
         service: "gmail",
         auth: {
-            user: process.env.SMTP_EMAIL,
-            pass: process.env.SMTP_PASSWORD
+            user: smtpEmail,
+            pass: smtpPass
         },
-        connectionTimeout: 10000,
-        greetingTimeout: 10000,
-        socketTimeout: 10000
+        connectionTimeout: 30000,
+        greetingTimeout: 30000,
+        socketTimeout: 30000
     });
 }
 
+async function verifyTransporter() {
+    try {
+        const transporter = createTransporter();
+        await transporter.verify();
+        console.log("[SMTP] ✅ Transporter verified - SMTP connection is working!");
+        return { success: true };
+    } catch (error) {
+        console.error("[SMTP] ❌ Transporter verification FAILED:", error.code, error.message);
+        return { success: false, error: error.message, code: error.code };
+    }
+}
+
 async function sendOTPEmail(email, otp, purpose = "verification") {
+    console.log(`[SMTP] Attempting to send ${purpose} OTP to: ${email}`);
     const transporter = createTransporter();
 
     const subjects = {
@@ -72,12 +95,17 @@ async function sendOTPEmail(email, otp, purpose = "verification") {
     };
 
     try {
-        await transporter.sendMail(mailOptions);
+        const info = await transporter.sendMail(mailOptions);
+        console.log(`[SMTP] ✅ Email sent successfully! MessageId: ${info.messageId}`);
         return { success: true };
     } catch (error) {
-        console.error("Email send error:", error.message);
+        console.error("[SMTP] ❌ Email send FAILED!");
+        console.error("[SMTP] Error code:", error.code);
+        console.error("[SMTP] Error message:", error.message);
+        console.error("[SMTP] Error response:", error.response);
+        console.error("[SMTP] Full error:", JSON.stringify(error, Object.getOwnPropertyNames(error)));
         return { success: false, error: error.message };
     }
 }
 
-module.exports = { generateOTP, sendOTPEmail };
+module.exports = { generateOTP, sendOTPEmail, verifyTransporter };
