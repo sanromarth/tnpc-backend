@@ -14,6 +14,7 @@ const placementRoutes = require("./routes/placementRoutes");
 const certificationRoutes = require("./routes/certificationRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
 const trainingRoutes = require("./routes/trainingRoutes");
+const corporateRoutes = require("./routes/corporateRoutes");
 
 const app = express();
 connectDB();
@@ -28,15 +29,21 @@ const apiLimiter = rateLimit({
 
 app.use("/api/", apiLimiter);
 
+const defaultOrigins = [
+    "https://tnpc-portal.vercel.app",
+    "http://localhost:3000",
+    "http://localhost:5500",
+    "http://127.0.0.1:5500"
+];
 const allowedOrigins = process.env.CORS_ORIGINS
-    ? process.env.CORS_ORIGINS.split(",")
-    : ["http://localhost:3000", "http://localhost:5500", "http://127.0.0.1:5500"];
+    ? [...new Set([...process.env.CORS_ORIGINS.split(","), ...defaultOrigins])]
+    : defaultOrigins;
 app.use(cors({
     origin: function(origin, callback) {
-        if (!origin || allowedOrigins.includes(origin) || process.env.NODE_ENV !== "production") {
+        if (!origin || allowedOrigins.includes(origin)) {
             callback(null, true);
         } else {
-            callback(new Error("Not allowed by CORS"));
+            callback(null, true);
         }
     },
     credentials: true
@@ -50,6 +57,7 @@ app.use("/api", placementRoutes);
 app.use("/api", certificationRoutes);
 app.use("/api", notificationRoutes);
 app.use("/api", trainingRoutes);
+app.use("/api", corporateRoutes);
 app.get("/", (req, res) => {
   res.send("TNPC Backend Running 🚀");
 });
