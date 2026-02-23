@@ -6,7 +6,7 @@ const requireAdmin = require("../middleware/adminMiddleware");
 
 router.get("/trainings", verifyToken, async (req, res) => {
   try {
-    const trainings = await Training.find().sort({ date: -1 });
+    const trainings = await Training.find().sort({ date: -1 }).lean();
     res.json(trainings);
   } catch (error) {
     res.status(500).json({ message: "Failed to fetch trainings" });
@@ -18,7 +18,7 @@ router.get("/trainings/upcoming", async (req, res) => {
     const trainings = await Training.find({
       date: { $gte: new Date() },
       status: { $in: ["upcoming", "ongoing"] }
-    }).sort({ date: 1 }).limit(10);
+    }).sort({ date: 1 }).limit(10).lean();
     res.json(trainings);
   } catch (error) {
     res.status(500).json({ message: "Failed to fetch upcoming trainings" });

@@ -5,7 +5,7 @@ const requireAdmin = require("../middleware/adminMiddleware");
 
 router.get("/corporates", async (req, res) => {
   try {
-    const corporates = await Corporate.find().sort({ createdAt: -1 });
+    const corporates = await Corporate.find().sort({ createdAt: -1 }).lean();
     res.json(corporates);
   } catch (error) {
     res.status(500).json({ message: "Failed to fetch corporates", error: error.message });

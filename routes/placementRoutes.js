@@ -4,7 +4,7 @@ const Placement = require("../models/Placement");
 const requireAdmin = require("../middleware/adminMiddleware");
 router.get("/placements", async (req, res) => {
   try {
-    const placements = await Placement.find().sort({ yearOrder: 1 });
+    const placements = await Placement.find().sort({ yearOrder: 1 }).lean();
     res.status(200).json(placements);
   } catch (error) {
     res.status(500).json({ message: error.message });

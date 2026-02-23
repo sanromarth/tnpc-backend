@@ -29,7 +29,7 @@ router.get("/applications", requireAdmin, async (req, res) => {
         const applications = await Application.find()
             .populate("jobId", "company role salary location deadline type status")
             .populate("studentId", "name email course specialization registerNumber")
-            .sort({ appliedAt: -1 });
+            .sort({ appliedAt: -1 }).lean();
         res.json(applications);
     } catch (error) {
         console.error("Fetch applications error:", error.message);
@@ -40,7 +40,7 @@ router.get("/applications/my", verifyToken, async (req, res) => {
     try {
         const applications = await Application.find({ studentId: req.user.id })
             .populate("jobId", "company role location salary deadline type status")
-            .sort({ appliedAt: -1 });
+            .sort({ appliedAt: -1 }).lean();
         res.json(applications);
     } catch (error) {
         console.error("Fetch user applications error:", error.message);

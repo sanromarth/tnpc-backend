@@ -4,7 +4,7 @@ const Certification = require("../models/certification");
 const requireAdmin = require("../middleware/adminMiddleware");
 router.get("/certifications/ibm", async (req, res) => {
     try {
-        const data = await Certification.find({ program: "IBM Certifications", year: 2026 });
+        const data = await Certification.find({ program: "IBM Certifications", year: 2026 }).lean();
         res.status(200).json(data);
     } catch (error) {
         res.status(500).json({
@@ -15,7 +15,7 @@ router.get("/certifications/ibm", async (req, res) => {
 });
 router.get("/certifications", async (req, res) => {
     try {
-        const data = await Certification.find().sort({ completionDate: -1 });
+        const data = await Certification.find().sort({ completionDate: -1 }).lean();
         res.status(200).json(data);
     } catch (error) {
         res.status(500).json({ message: "Error fetching certifications", error: error.message });

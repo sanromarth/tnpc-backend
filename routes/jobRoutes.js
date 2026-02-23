@@ -27,7 +27,7 @@ router.get("/jobs", async (req, res) => {
         const limit = Math.min(100, Math.max(1, parseInt(limitParam) || 50));
         const skip = (pageNum - 1) * limit;
         const total = await Job.countDocuments(filter);
-        const jobs = await Job.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit);
+        const jobs = await Job.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit).lean();
         res.json({
             jobs,
             pagination: { page: pageNum, limit, total, pages: Math.ceil(total / limit) }
@@ -39,7 +39,7 @@ router.get("/jobs", async (req, res) => {
 
 router.get("/jobs/:id", async (req, res) => {
     try {
-        const job = await Job.findById(req.params.id);
+        const job = await Job.findById(req.params.id).lean();
         if (!job) return res.status(404).json({ message: "Job not found" });
         res.json(job);
     } catch (error) {
