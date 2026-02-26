@@ -15,6 +15,7 @@ const certificationRoutes = require("./routes/certificationRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
 const trainingRoutes = require("./routes/trainingRoutes");
 const corporateRoutes = require("./routes/corporateRoutes");
+const contactRoutes = require("./routes/contactRoutes");
 
 
 const app = express();
@@ -59,6 +60,7 @@ app.use("/api", certificationRoutes);
 app.use("/api", notificationRoutes);
 app.use("/api", trainingRoutes);
 app.use("/api", corporateRoutes);
+app.use("/api", contactRoutes);
 app.get("/", (req, res) => {
   res.send("TNPC Backend Running 🚀");
 });
