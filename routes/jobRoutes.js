@@ -4,24 +4,44 @@ const Job = require("../models/Job");
 const verifyToken = require("../middleware/authMiddleware");
 const requireAdmin = require("../middleware/adminMiddleware");
 
+// Escape regex special characters to prevent ReDoS
+function escapeRegex(str) {
+    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// Time-gated auto-expire: only run updateMany at most once per 60 seconds
+let lastExpireCheck = 0;
+async function autoExpireJobs() {
+    const now = Date.now();
+    if (now - lastExpireCheck < 60000) return;
+    lastExpireCheck = now;
+    try {
+        await Job.updateMany(
+            { deadline: { $lt: new Date() }, status: "active" },
+            { $set: { status: "expired" } }
+        );
+    } catch (err) {
+        console.error("Auto-expire jobs error:", err.message);
+    }
+}
+
 router.get("/jobs", async (req, res) => {
     try {
         const { status, type, company, search, page, limit: limitParam } = req.query;
         const filter = {};
         if (status) filter.status = status;
         if (type) filter.type = type;
-        if (company) filter.company = { $regex: company, $options: "i" };
+        if (company) filter.company = { $regex: escapeRegex(company.substring(0, 100)), $options: "i" };
         if (search) {
+            const safeSearch = escapeRegex(search.substring(0, 100));
             filter.$or = [
-                { company: { $regex: search, $options: "i" } },
-                { role: { $regex: search, $options: "i" } }
+                { company: { $regex: safeSearch, $options: "i" } },
+                { role: { $regex: safeSearch, $options: "i" } }
             ];
         }
 
-        await Job.updateMany(
-            { deadline: { $lt: new Date() }, status: "active" },
-            { $set: { status: "expired" } }
-        );
+        // Run auto-expire (time-gated, at most once/min)
+        await autoExpireJobs();
 
         const pageNum = Math.max(1, parseInt(page) || 1);
         const limit = Math.min(100, Math.max(1, parseInt(limitParam) || 50));

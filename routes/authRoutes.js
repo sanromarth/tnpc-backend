@@ -243,10 +243,11 @@ router.get("/students", requireAdmin, async (req, res) => {
         if (status) filter.placementStatus = status;
         if (minCgpa) filter.cgpa = { $gte: Number(minCgpa) };
         if (search) {
+            const safeSearch = search.substring(0, 200).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
             filter.$or = [
-                { name: { $regex: search, $options: "i" } },
-                { email: { $regex: search, $options: "i" } },
-                { registerNumber: { $regex: search, $options: "i" } }
+                { name: { $regex: safeSearch, $options: "i" } },
+                { email: { $regex: safeSearch, $options: "i" } },
+                { registerNumber: { $regex: safeSearch, $options: "i" } }
             ];
         }
         const students = await User.find(filter).select("-password -otpCode -otpExpiry").sort({ createdAt: -1 });

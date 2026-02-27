@@ -29,6 +29,15 @@ const apiLimiter = rateLimit({
   message: "Too many requests from this IP, please try again after 15 minutes",
 });
 
+// Stricter rate limiter for auth endpoints to prevent brute-force
+const authLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 10,
+  message: "Too many authentication attempts. Please wait a moment and try again.",
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 app.use("/api/", apiLimiter);
 
 const defaultOrigins = [
@@ -42,16 +51,25 @@ const allowedOrigins = process.env.CORS_ORIGINS
     : defaultOrigins;
 app.use(cors({
     origin: function(origin, callback) {
+        // Allow requests with no origin (mobile apps, curl, etc.)
         if (!origin || allowedOrigins.includes(origin)) {
             callback(null, true);
         } else {
-            callback(null, true);
+            console.warn(`CORS blocked origin: ${origin}`);
+            callback(new Error("Not allowed by CORS"));
         }
     },
     credentials: true
 }));
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
+// Apply stricter rate limit to auth-sensitive routes
+app.use("/api/login", authLimiter);
+app.use("/api/register", authLimiter);
+app.use("/api/forgot-password", authLimiter);
+app.use("/api/reset-password", authLimiter);
+app.use("/api/resend-otp", authLimiter);
+
 app.use("/api", authRoutes);
 app.use("/api", jobRoutes);
 app.use("/api", applicationRoutes);
